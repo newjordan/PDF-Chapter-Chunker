@@ -1,0 +1,2 @@
+# PDF Chapter Chunker Dependencies
+pypdf>=3.0.0
