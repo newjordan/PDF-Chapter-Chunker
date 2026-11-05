@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-chapter-chunker"
+dynamic = ["version"]
+description = "Split a PDF into chapters from bookmarks or a table of contents"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [{name = "newjordan"}]
+keywords = ["pdf", "split", "chunk", "chapter", "table-of-contents", "document"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Text Processing",
+    "Topic :: Utilities",
+]
+dependencies = ["pypdf>=3.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/newjordan/PDF-Chapter-Chunker"
+Documentation = "https://github.com/newjordan/PDF-Chapter-Chunker#readme"
+Repository = "https://github.com/newjordan/PDF-Chapter-Chunker"
+Issues = "https://github.com/newjordan/PDF-Chapter-Chunker/issues"
+
+[project.scripts]
+pdf-chunker = "pdf_chapter_chunker:main"
+
+[tool.setuptools]
+py-modules = ["pdf_chapter_chunker"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pdf_chapter_chunker.__version__"}
