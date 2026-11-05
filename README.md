@@ -1,229 +1,138 @@
-# PDF Chapter Chunker 📚
+# PDF Chapter Chunker
 
-An intelligent PDF splitting tool that can automatically detect chapters from a table of contents and split PDFs into digestible, topic-focused chunks.
+Split a PDF into one file per chapter. The tool reads top-level bookmarks when the file has them, otherwise it looks for a table of contents in the first 25 pages. If it finds neither, it falls back to fixed-size page chunks.
 
-## ✨ Features
+## Install
 
-- **🔍 Smart Chapter Detection**: Automatically extracts table of contents and splits by chapters
-- **📄 Page-Based Chunking**: Fallback to fixed-page chunks when no TOC is found
-- **📁 Organized Output**: Creates clean folder structures with descriptive filenames
-- **🏷️ Rich Metadata**: Adds bookmarks and metadata to generated PDFs
-- **🛡️ Error Handling**: Robust error handling and graceful fallbacks
-- **📋 Multiple TOC Formats**: Supports various table of contents patterns
-- **⚡ Fast Processing**: Efficient PDF processing with minimal memory usage
+Python 3.8 or newer.
 
-## 🚀 Installation
+Install the `pdf-chunker` command from a checkout:
 
-### Prerequisites
-- Python 3.7 or higher
-- pip package manager
-
-### Install Dependencies
 ```bash
-pip install pypdf
-```
-
-### Download the Script
-```bash
-# Clone the repository
 git clone https://github.com/newjordan/PDF-Chapter-Chunker.git
 cd PDF-Chapter-Chunker
-
-# Or download directly
-wget https://raw.githubusercontent.com/newjordan/PDF-Chapter-Chunker/main/pdf_chapter_chunker.py
+pip install .
 ```
 
-## 📖 Usage
+To run the script without installing the command:
 
-### Basic Usage
 ```bash
-# Split by chapters (default mode)
-python pdf_chapter_chunker.py book.pdf
-
-# Split by chapters explicitly
-python pdf_chapter_chunker.py book.pdf --mode chapters
-
-# Split by pages (99 pages per chunk)
-python pdf_chapter_chunker.py book.pdf --mode pages
-
-# Split by pages with custom chunk size
-python pdf_chapter_chunker.py book.pdf --mode pages --size 50
-```
-
-### Advanced Options
-```bash
-# Custom output directory
-python pdf_chapter_chunker.py book.pdf --output ./my_chunks
-
-# Quiet mode (minimal output)
-python pdf_chapter_chunker.py book.pdf --quiet
-
-# Get help
+pip install -r requirements.txt
 python pdf_chapter_chunker.py --help
 ```
 
-## 🎯 Examples
+## Quickstart
 
-### Chapter Mode (Recommended)
 ```bash
-python pdf_chapter_chunker.py "Technical_Manual.pdf"
+pdf-chunker book.pdf
+pdf-chunker book.pdf --mode pages --size 50
+pdf-chunker book.pdf --output ./chunks
+pdf-chunker book.pdf --quiet
 ```
 
-**Output:**
+The same flags work with `python pdf_chapter_chunker.py`.
+
+## What it does
+
+Chapter mode, in order:
+
+1. **Bookmarks.** Top-level PDF bookmarks become chapters. Each chunk starts on the page that bookmark opens. Nested bookmarks stay inside the parent chapter.
+2. **Table-of-contents text.** If there are no usable bookmarks, the first 25 pages are scanned for lines like these:
+   - `Introduction .......... 15`
+   - `Chapter 1: Getting Started 23`
+   - `Appendix A 145`
+   - `1.2 Methods 40` (only when the page text contains the word "contents")
+3. **Page chunks.** If that scan finds nothing, the PDF is split into fixed chunks (default 99 pages) in `<name>_pages/`. `--size` applies to this fallback as well as to `--mode pages`.
+
+Pages before the first chapter are written to `001_Front matter.pdf`, so the split still covers the whole file. Other chapters run from their start page up to the page before the next chapter. The last chapter runs through the end of the file.
+
+Each output PDF gets a bookmark and document info (`Title`, `Subject`, `Creator`) for that chapter or chunk. Filenames are numbered, stripped of characters that are illegal on common filesystems, and truncated.
+
+Default folders, created next to the input file:
+
+```text
+manual_chapters/
+├── 001_Front matter.pdf
+├── 002_Introduction.pdf
+└── 003_Chapter 1_ Getting Started.pdf
+
+manual_pages/
+├── manual_chunk_001.pdf
+└── manual_chunk_002.pdf
 ```
-Processing Technical_Manual.pdf (450 pages)
-Extracting table of contents from first chunk...
-Found 23 chapter entries:
+
+`--output DIR` writes those files directly into `DIR`.
+
+## What it does not do
+
+- It does not OCR scanned pages. A scan with no text layer and no bookmarks falls back to page chunks.
+- Text table-of-contents numbers are used as PDF page numbers. If printed page 1 is not PDF page 1, add bookmarks or the split will land on the wrong pages. Bookmark mode uses the destination page stored in the file, so it does not have this problem.
+- It does not split on nested bookmarks.
+- It does not open password-protected PDFs.
+- `--size` does not shorten a chapter that is already longer than that many pages. It only affects page mode and the chapter-mode fallback.
+
+## CLI
+
+| Option | Description | Default |
+| --- | --- | --- |
+| `input_pdf` | PDF to split | required |
+| `--mode` | `chapters` or `pages` | `chapters` |
+| `--output`, `-o` | Directory that receives the chunk files | `<name>_chapters` or `<name>_pages` next to the input |
+| `--size`, `-s` | Pages per chunk in page mode, and when chapter mode falls back | `99` |
+| `--quiet`, `-q` | Suppress progress output | off |
+| `--version` | Print the version | |
+
+`--size` must be a positive integer.
+
+## Examples
+
+Chapter mode when the PDF has bookmarks:
+
+```bash
+pdf-chunker Technical_Manual.pdf
+```
+
+```text
+Processing Technical_Manual.pdf (120 pages)
+Splitting on top-level bookmarks:
+  - Front matter (page 1)
   - Introduction (page 5)
   - Chapter 1: Getting Started (page 12)
-  - Chapter 2: Advanced Topics (page 45)
-  ...
+  - Chapter 2: Advanced Topics (page 40)
+Created: 001_Front matter.pdf (4 pages)
+Created: 002_Introduction.pdf (7 pages)
+Created: 003_Chapter 1_ Getting Started.pdf (28 pages)
+Created: 004_Chapter 2_ Advanced Topics.pdf (81 pages)
 
-Created: 001_Introduction.pdf (7 pages)
-Created: 002_Chapter 1_ Getting Started.pdf (33 pages)
-Created: 003_Chapter 2_ Advanced Topics.pdf (28 pages)
-...
+Successfully created 4 chapter chunks in: Technical_Manual_chapters
 
-✅ Successfully split PDF into 23 chunks!
+✅ Successfully split PDF into 4 chunks!
 ```
 
-### Page Mode
+Page mode:
+
 ```bash
-python pdf_chapter_chunker.py "Large_Document.pdf" --mode pages --size 25
+pdf-chunker Large_Document.pdf --mode pages --size 25
 ```
 
-**Output:**
-```
+```text
 Processing Large_Document.pdf (300 pages)
 Creating 12 chunks of up to 25 pages each
-
 Created: Large_Document_chunk_001.pdf (25 pages)
-Created: Large_Document_chunk_002.pdf (25 pages)
 ...
 
 ✅ Successfully split PDF into 12 chunks!
 ```
 
-## 📂 Output Structure
+## Development
 
-### Chapter Mode
-```
-book_name_chapters/
-├── 001_Introduction.pdf
-├── 002_Chapter 1_ Getting Started.pdf
-├── 003_Chapter 2_ Advanced Concepts.pdf
-└── ...
-```
-
-### Page Mode
-```
-book_name_pages/
-├── book_name_chunk_001.pdf
-├── book_name_chunk_002.pdf
-├── book_name_chunk_003.pdf
-└── ...
-```
-
-## 🔧 How It Works
-
-### Chapter Detection
-The tool analyzes the first 25 pages of a PDF to find table of contents using multiple patterns:
-
-- `Chapter Title ... Page Number`
-- `1.1 Section Title ... 45`
-- `Chapter 1: Title 23`
-- And more formats...
-
-### Smart Filename Generation
-- Removes invalid characters (`<>:"/\\|?*`)
-- Limits filename length for compatibility
-- Preserves meaningful chapter titles
-- Sequential numbering for organization
-
-### Fallback Strategy
-If no table of contents is detected:
-1. Warns the user
-2. Automatically switches to page-based chunking
-3. Uses sensible defaults (99 pages per chunk)
-
-## 🎨 Supported TOC Formats
-
-The tool recognizes various table of contents patterns:
-
-```
-✅ Chapter 1: Introduction .............. 15
-✅ 1.1 Getting Started .................. 23  
-✅ Section 2.3 Advanced Topics .......... 67
-✅ Appendix A 145
-✅ Bibliography ......................... 200
-```
-
-## ⚙️ Command Line Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `input_pdf` | Path to input PDF file | Required |
-| `--mode` | Chunking mode: `chapters` or `pages` | `chapters` |
-| `--output, -o` | Output directory | Same as input |
-| `--size, -s` | Pages per chunk (page mode only) | `99` |
-| `--quiet, -q` | Suppress verbose output | `False` |
-| `--help` | Show help message | - |
-| `--version` | Show version | - |
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"No table of contents found"**
-- The PDF may not have a standard TOC format
-- Tool will automatically fall back to page-based chunking
-- Try adjusting the search depth or patterns
-
-**"Error reading PDF"**
-- Ensure the PDF file is not corrupted
-- Check file permissions
-- Try with a different PDF
-
-**Memory issues with large PDFs**
-- The tool processes pages efficiently
-- For extremely large files (>1000 pages), consider splitting first
-
-### Debug Mode
-Run with verbose output to see detailed processing:
 ```bash
-python pdf_chapter_chunker.py book.pdf  # Verbose by default
+pip install -e .
+python -m unittest discover -s tests -t .
 ```
 
-## 🤝 Contributing
+TOC line patterns live in `pdf_chapter_chunker.py` (`_DOT_LEADER`, `_CHAPTER_LINE`, `_NUMBERED_LINE`).
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## License
 
-### Development Setup
-```bash
-git clone https://github.com/newjordan/PDF-Chapter-Chunker.git
-cd PDF-Chapter-Chunker
-pip install -r requirements.txt
-```
-
-### Adding New TOC Patterns
-Edit the `toc_patterns` list in the `PDFChunker` class to support new formats.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built with [pypdf](https://github.com/py-pdf/pypdf) for PDF processing
-- Inspired by the need for better technical document organization
-- Thanks to the open source community for feedback and contributions
-
-## 📊 Performance
-
-- **Speed**: Processes ~100 pages per second on modern hardware
-- **Memory**: Minimal RAM usage, suitable for large documents
-- **Compatibility**: Works with most PDF versions and formats
-
----
-
-**Made with ❤️ for better document organization**
+MIT. See [LICENSE](LICENSE).
