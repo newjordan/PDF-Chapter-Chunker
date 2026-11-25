@@ -1,229 +1,242 @@
-# PDF Chapter Chunker 📚
+# PDF Chapter Chunker
 
-An intelligent PDF splitting tool that can automatically detect chapters from a table of contents and split PDFs into digestible, topic-focused chunks.
+[![CI](https://github.com/newjordan/PDF-Chapter-Chunker/actions/workflows/ci.yml/badge.svg)](https://github.com/newjordan/PDF-Chapter-Chunker/actions/workflows/ci.yml)
 
-## ✨ Features
+Split a PDF into chapters. The default is still one PDF file per chapter, with a bookmark and document metadata on each file. The same split can be written as JSON or Markdown instead.
 
-- **🔍 Smart Chapter Detection**: Automatically extracts table of contents and splits by chapters
-- **📄 Page-Based Chunking**: Fallback to fixed-page chunks when no TOC is found
-- **📁 Organized Output**: Creates clean folder structures with descriptive filenames
-- **🏷️ Rich Metadata**: Adds bookmarks and metadata to generated PDFs
-- **🛡️ Error Handling**: Robust error handling and graceful fallbacks
-- **📋 Multiple TOC Formats**: Supports various table of contents patterns
-- **⚡ Fast Processing**: Efficient PDF processing with minimal memory usage
+Chapter mode looks for structure in this order:
 
-## 🚀 Installation
+1. **Text table of contents** in the first 25 pages, using the same patterns as v2.0. When a contents line points at a real page, that split is used.
+2. **PDF outline** (the bookmark tree) when the text contents do not match. Top-level bookmarks are chapters. Nested bookmarks stay inside the parent. A single root bookmark with several children uses the children.
+3. **Heading detection** when the file has no outline. The detector looks for lines such as `Chapter 1`, `Chapter 1` followed by a short title, `Appendix A`, numbered titles in a larger font, and other short large-type lines at the top of a page. Repeated running headers are ignored.
+4. **99-page chunks** when none of the above find chapters. In chapter mode those PDFs are still written to `<name>_chapters/`.
 
-### Prerequisites
-- Python 3.7 or higher
-- pip package manager
+A line that is only `Chapter 1` is not treated as a contents entry. The number is the chapter number, so heading detection uses the page where that line actually appears.
 
-### Install Dependencies
+Pages before the first chapter are omitted, matching previous versions.
+
+## Install
+
+Python 3.10 or newer.
+
 ```bash
-pip install pypdf
-```
-
-### Download the Script
-```bash
-# Clone the repository
 git clone https://github.com/newjordan/PDF-Chapter-Chunker.git
 cd PDF-Chapter-Chunker
-
-# Or download directly
-wget https://raw.githubusercontent.com/newjordan/PDF-Chapter-Chunker/main/pdf_chapter_chunker.py
+pip install .
 ```
 
-## 📖 Usage
+That installs the `pdf-chunker` command. From a checkout you can also run:
 
-### Basic Usage
 ```bash
-# Split by chapters (default mode)
-python pdf_chapter_chunker.py book.pdf
-
-# Split by chapters explicitly
-python pdf_chapter_chunker.py book.pdf --mode chapters
-
-# Split by pages (99 pages per chunk)
-python pdf_chapter_chunker.py book.pdf --mode pages
-
-# Split by pages with custom chunk size
-python pdf_chapter_chunker.py book.pdf --mode pages --size 50
+python -m pdf_chapter_chunker --help
 ```
 
-### Advanced Options
+Development tools (pytest, reportlab for generated fixtures, Ruff, and mypy):
+
 ```bash
-# Custom output directory
-python pdf_chapter_chunker.py book.pdf --output ./my_chunks
-
-# Quiet mode (minimal output)
-python pdf_chapter_chunker.py book.pdf --quiet
-
-# Get help
-python pdf_chapter_chunker.py --help
+pip install -e ".[dev]"
+pytest
 ```
 
-## 🎯 Examples
+Tests build small PDFs in memory. They do not download books.
 
-### Chapter Mode (Recommended)
+## Usage
+
+PDF output is the default.
+
 ```bash
-python pdf_chapter_chunker.py "Technical_Manual.pdf"
+# Split by chapters into PDFs
+pdf-chunker book.pdf
+
+# Same thing, explicit mode
+pdf-chunker book.pdf --mode chapters
+
+# Fixed page chunks (99 pages, or pass --size)
+pdf-chunker book.pdf --mode pages
+pdf-chunker book.pdf --mode pages --size 50
+
+# Choose the output directory
+pdf-chunker book.pdf --output ./chunks
+
+# One JSON document with titles, page ranges, and extracted text
+pdf-chunker book.pdf --format json
+
+# One Markdown document
+pdf-chunker book.pdf --format markdown -o book.md
+
+# Suppress progress logs
+pdf-chunker book.pdf --quiet
 ```
 
-**Output:**
+`python -m pdf_chapter_chunker` accepts the same arguments.
+
+### Chapter PDFs
+
+```bash
+pdf-chunker Technical_Manual.pdf
 ```
+
+```text
 Processing Technical_Manual.pdf (450 pages)
 Extracting table of contents from first chunk...
 Found 23 chapter entries:
   - Introduction (page 5)
   - Chapter 1: Getting Started (page 12)
-  - Chapter 2: Advanced Topics (page 45)
   ...
 
 Created: 001_Introduction.pdf (7 pages)
 Created: 002_Chapter 1_ Getting Started.pdf (33 pages)
-Created: 003_Chapter 2_ Advanced Topics.pdf (28 pages)
-...
+
+Successfully created 23 chapter chunks in: Technical_Manual_chapters
 
 ✅ Successfully split PDF into 23 chunks!
 ```
 
-### Page Mode
-```bash
-python pdf_chapter_chunker.py "Large_Document.pdf" --mode pages --size 25
-```
-
-**Output:**
-```
-Processing Large_Document.pdf (300 pages)
-Creating 12 chunks of up to 25 pages each
-
-Created: Large_Document_chunk_001.pdf (25 pages)
-Created: Large_Document_chunk_002.pdf (25 pages)
-...
-
-✅ Successfully split PDF into 12 chunks!
-```
-
-## 📂 Output Structure
-
-### Chapter Mode
-```
-book_name_chapters/
+```text
+Technical_Manual_chapters/
 ├── 001_Introduction.pdf
 ├── 002_Chapter 1_ Getting Started.pdf
-├── 003_Chapter 2_ Advanced Concepts.pdf
 └── ...
 ```
 
-### Page Mode
+Each file's title is `<stem> - <chapter>`, the subject is `Chapter N: <chapter>`, and the PDF outline contains the chapter title. The creator is `PDF Chapter Chunker v2.1.0`.
+
+When you pass `--output`, chapter PDFs go in `<output>/<stem>_chapters/`. Page-mode PDFs go directly in `--output`, or in `<stem>_pages/` when you omit it.
+
+### Page PDFs
+
+```bash
+pdf-chunker Large_Document.pdf --mode pages --size 25
 ```
-book_name_pages/
-├── book_name_chunk_001.pdf
-├── book_name_chunk_002.pdf
-├── book_name_chunk_003.pdf
+
+```text
+Large_Document_pages/
+├── Large_Document_chunk_001.pdf
+├── Large_Document_chunk_002.pdf
 └── ...
 ```
 
-## 🔧 How It Works
+### JSON
 
-### Chapter Detection
-The tool analyzes the first 25 pages of a PDF to find table of contents using multiple patterns:
-
-- `Chapter Title ... Page Number`
-- `1.1 Section Title ... 45`
-- `Chapter 1: Title 23`
-- And more formats...
-
-### Smart Filename Generation
-- Removes invalid characters (`<>:"/\\|?*`)
-- Limits filename length for compatibility
-- Preserves meaningful chapter titles
-- Sequential numbering for organization
-
-### Fallback Strategy
-If no table of contents is detected:
-1. Warns the user
-2. Automatically switches to page-based chunking
-3. Uses sensible defaults (99 pages per chunk)
-
-## 🎨 Supported TOC Formats
-
-The tool recognizes various table of contents patterns:
-
-```
-✅ Chapter 1: Introduction .............. 15
-✅ 1.1 Getting Started .................. 23  
-✅ Section 2.3 Advanced Topics .......... 67
-✅ Appendix A 145
-✅ Bibliography ......................... 200
+```bash
+pdf-chunker book.pdf --format json -o book.json
 ```
 
-## ⚙️ Command Line Options
+```json
+{
+  "tool": "pdf-chapter-chunker",
+  "version": "2.1.0",
+  "source": "book.pdf",
+  "page_count": 120,
+  "mode": "chapters",
+  "detection": "toc",
+  "pages_per_chunk": null,
+  "chapters": [
+    {
+      "index": 1,
+      "title": "Introduction",
+      "filename": "001_Introduction.pdf",
+      "start_page": 5,
+      "end_page": 11,
+      "page_count": 7,
+      "text": "..."
+    }
+  ]
+}
+```
+
+`detection` is `toc`, `outline`, `headings`, or `pages`. `filename` is the PDF name that chapter mode would have used. With no `--output`, the file is `<stem>_chapters.json` or `<stem>_pages.json`.
+
+### Markdown
+
+```bash
+pdf-chunker book.pdf --format markdown
+```
+
+```markdown
+# book
+
+- Source: book.pdf
+- Pages: 120
+- Mode: chapters
+- Detection: headings
+- Tool: pdf-chapter-chunker 2.1.0
+
+## 1. Introduction
+
+Pages 5-11.
+
+...
+```
+
+## Options
 
 | Option | Description | Default |
-|--------|-------------|---------|
-| `input_pdf` | Path to input PDF file | Required |
-| `--mode` | Chunking mode: `chapters` or `pages` | `chapters` |
-| `--output, -o` | Output directory | Same as input |
-| `--size, -s` | Pages per chunk (page mode only) | `99` |
-| `--quiet, -q` | Suppress verbose output | `False` |
-| `--help` | Show help message | - |
-| `--version` | Show version | - |
+| --- | --- | --- |
+| `input_pdf` | Input PDF | Required |
+| `--mode` | `chapters` or `pages` | `chapters` |
+| `--format` | `pdf`, `json`, or `markdown` | `pdf` |
+| `--output`, `-o` | Directory, or a `.json` / `.md` file | Beside the input |
+| `--size`, `-s` | Pages per chunk in page mode | `99` |
+| `--quiet`, `-q` | Suppress progress logs | Off |
+| `--version` | Print the version | |
 
-## 🐛 Troubleshooting
+`--size` must be a positive integer. It applies to `--mode pages`. The chapter-mode page fallback stays at 99 pages.
 
-### Common Issues
+## Contents patterns
 
-**"No table of contents found"**
-- The PDF may not have a standard TOC format
-- Tool will automatically fall back to page-based chunking
-- Try adjusting the search depth or patterns
+These lines still match when the first 25 pages contain `contents`, `table of contents`, `index`, or `chapter`:
 
-**"Error reading PDF"**
-- Ensure the PDF file is not corrupted
-- Check file permissions
-- Try with a different PDF
-
-**Memory issues with large PDFs**
-- The tool processes pages efficiently
-- For extremely large files (>1000 pages), consider splitting first
-
-### Debug Mode
-Run with verbose output to see detailed processing:
-```bash
-python pdf_chapter_chunker.py book.pdf  # Verbose by default
+```text
+Chapter 1: Introduction .............. 15
+1.1 Getting Started .................. 23
+Section 2.3 Advanced Topics .......... 67
+Appendix A 145
+Bibliography ......................... 200
 ```
 
-## 🤝 Contributing
+The page number is used as a PDF page number, not a printed page number. A contents hit inside the document wins over bookmarks and over heading detection.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Lines that only say `Chapter 1` or `Chapter 2` are left for heading detection, because that pattern used to read the chapter number as a page number.
 
-### Development Setup
-```bash
-git clone https://github.com/newjordan/PDF-Chapter-Chunker.git
-cd PDF-Chapter-Chunker
-pip install -r requirements.txt
+## Library
+
+```python
+from pdf_chapter_chunker import PDFChunker
+
+chunker = PDFChunker()
+paths = chunker.split_by_chapters("book.pdf")
+print(chunker.last_detection)  # toc, outline, headings, or pages
+
+chunker.split_by_chapters("book.pdf", output_format="json")
+chunker.split_by_pages("book.pdf", chunk_size=50)
 ```
 
-### Adding New TOC Patterns
-Edit the `toc_patterns` list in the `PDFChunker` class to support new formats.
+`split_by_chapters` and `split_by_pages` default to `output_format="pdf"`.
 
-## 📄 License
+## Troubleshooting
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**No table of contents found.** The tool tries bookmarks, then headings, then 99-page chunks. A scanned PDF with no text layer cannot yield headings.
 
-## 🙏 Acknowledgments
+**Contents points at the wrong pages.** The text scanner uses the number printed on the contents line as the PDF page index. Bookmarks are more reliable. They are used when that contents scan does not produce an in-range chapter.
 
-- Built with [pypdf](https://github.com/py-pdf/pypdf) for PDF processing
-- Inspired by the need for better technical document organization
-- Thanks to the open source community for feedback and contributions
+**Encrypted PDFs.** The reader error is reported and the command exits with status 1.
 
-## 📊 Performance
+**Filenames.** `<>:"/\|?*` are replaced, whitespace is collapsed, and long titles are cut on a word boundary.
 
-- **Speed**: Processes ~100 pages per second on modern hardware
-- **Memory**: Minimal RAM usage, suitable for large documents
-- **Compatibility**: Works with most PDF versions and formats
+## Development
 
----
+```bash
+pip install -e ".[dev]"
+pytest
+ruff check src tests
+mypy src
+```
 
-**Made with ❤️ for better document organization**
+CI runs those checks on Python 3.10, 3.11, 3.12, and 3.13. New contents patterns belong on `PDFChunker.toc_patterns`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+Built with [pypdf](https://github.com/py-pdf/pypdf).

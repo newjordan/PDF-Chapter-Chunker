@@ -63,6 +63,13 @@ temp_*.pdf
 # Logs
 *.log
 
+# Test and type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
 # Distribution / packaging
 .Python
 build/
