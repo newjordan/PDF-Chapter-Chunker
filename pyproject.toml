@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf-chapter-chunker"
+description = "Split a PDF into chapters from its table of contents, outline, or headings"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "newjordan" }]
+requires-python = ">=3.10"
+keywords = ["pdf", "split", "chunk", "chapter", "table-of-contents", "document", "processing"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Topic :: Text Processing",
+    "Topic :: Utilities",
+]
+dependencies = ["pypdf>=6"]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "reportlab>=4.2",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/newjordan/PDF-Chapter-Chunker"
+Documentation = "https://github.com/newjordan/PDF-Chapter-Chunker#readme"
+Repository = "https://github.com/newjordan/PDF-Chapter-Chunker"
+Issues = "https://github.com/newjordan/PDF-Chapter-Chunker/issues"
+
+[project.scripts]
+pdf-chunker = "pdf_chapter_chunker:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "pdf_chapter_chunker._version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pdf_chapter_chunker = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["pdf_chapter_chunker"]
+mypy_path = "src"
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
